@@ -30,7 +30,7 @@ export default function MessageThreadPage() {
 
   const { isConnected } = useAccounts();
   const evmAddress = useEVMAddress();
-  const { authFetch, isAuthenticated } = useAuth();
+  const { authFetch } = useAuth();
 
   let parsedId: bigint | null = null;
   try {
@@ -45,13 +45,16 @@ export default function MessageThreadPage() {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState(false);
-  const [loadingMessages, setLoadingMessages] = useState(true);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [initialLoad, setInitialLoad] = useState(true);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const prevCountRef = useRef(0);
 
   const fetchMessages = useCallback(async () => {
-    if (!evmAddress || !isAuthenticated) return;
+    if (!evmAddress) {
+      setInitialLoad(false);
+      return;
+    }
     try {
       const res = await authFetch(
         `/api/messages?offerId=${offerId}`
@@ -63,9 +66,16 @@ export default function MessageThreadPage() {
     } catch {
       /* ignore */
     } finally {
-      setLoadingMessages(false);
+      setInitialLoad(false);
     }
-  }, [offerId, evmAddress, isAuthenticated, authFetch]);
+  }, [offerId, evmAddress, authFetch]);
+
+  // Reset state when switching to a different conversation
+  useEffect(() => {
+    setMessages([]);
+    setInitialLoad(true);
+    prevCountRef.current = 0;
+  }, [offerId]);
 
   useEffect(() => {
     fetchMessages();
@@ -75,8 +85,9 @@ export default function MessageThreadPage() {
 
   // Only auto-scroll when new messages arrive, not on every poll
   useEffect(() => {
-    if (messages.length > prevCountRef.current) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messages.length > prevCountRef.current && messagesContainerRef.current) {
+      const container = messagesContainerRef.current;
+      container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
     }
     prevCountRef.current = messages.length;
   }, [messages]);
@@ -86,7 +97,7 @@ export default function MessageThreadPage() {
   }, []);
 
   const sendMessage = async () => {
-    if (!input.trim() || !evmAddress || sending || !isAuthenticated) return;
+    if (!input.trim() || !evmAddress || sending) return;
     setSending(true);
     setSendError(false);
     try {
@@ -97,6 +108,7 @@ export default function MessageThreadPage() {
       const res = await authFetch("/api/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        autoAuth: true,
         body: JSON.stringify({
           offerId,
           text: input.trim(),
@@ -106,6 +118,8 @@ export default function MessageThreadPage() {
       if (res.ok) {
         setInput("");
         await fetchMessages();
+        // Notify the sidebar layout to refresh conversations
+        window.dispatchEvent(new Event("tekton-message-sent"));
       } else {
         setSendError(true);
       }
@@ -198,8 +212,8 @@ export default function MessageThreadPage() {
       </div>
 
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3">
-        {loadingMessages && messages.length === 0 && (
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3">
+        {initialLoad && messages.length === 0 && (
           <div className="flex justify-center py-16">
             <div className="flex items-center gap-3 text-black/40">
               <div className="w-4 h-4 border-2 border-black/10 border-t-orange-500 rounded-full animate-spin" />
@@ -208,7 +222,7 @@ export default function MessageThreadPage() {
           </div>
         )}
 
-        {!loadingMessages && messages.length === 0 && (
+        {!initialLoad && messages.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <div className="w-14 h-14 bg-black/[0.03] rounded-2xl flex items-center justify-center mb-4">
               <svg
@@ -299,7 +313,6 @@ export default function MessageThreadPage() {
             </div>
           );
         })}
-        <div ref={messagesEndRef} />
       </div>
 
       {/* Input area */}

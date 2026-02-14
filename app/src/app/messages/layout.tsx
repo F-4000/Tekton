@@ -14,7 +14,7 @@ import {
   type Offer,
   ZERO_ADDRESS,
 } from "@/lib/contract";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 
 /* ─── Types ─────────────────────────────────────────────────── */
 
@@ -164,7 +164,13 @@ export default function MessagesLayout({
   useEffect(() => {
     fetchInbox();
     const timer = setInterval(fetchInbox, 5000);
-    return () => clearInterval(timer);
+    // Also refresh when a message is sent from the thread page
+    const onMessageSent = () => fetchInbox();
+    window.addEventListener("tekton-message-sent", onMessageSent);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("tekton-message-sent", onMessageSent);
+    };
   }, [fetchInbox]);
 
   /* ── Request notification permission ─────────────────────── */
@@ -349,18 +355,7 @@ export default function MessagesLayout({
               isThreadView ? "flex" : "hidden md:flex"
             } flex-col flex-1 min-w-0`}
           >
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={pathname}
-                initial={{ opacity: 0, x: 10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                transition={{ duration: 0.2 }}
-                className="flex flex-col flex-1"
-              >
-                {children}
-              </motion.div>
-            </AnimatePresence>
+            {children}
           </div>
         </div>
       </motion.div>

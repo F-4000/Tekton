@@ -146,18 +146,28 @@ export function OfferCard({
         {creationTx && (
           <div className="flex justify-between text-xs text-black/40">
             <span>Tx Receipt</span>
-            <a
-              href={evmTxUrl(creationTx.txHash)}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="flex items-center gap-1 font-mono text-orange-500 hover:text-orange-600 transition-colors"
+            <span
+              role="link"
+              tabIndex={0}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                window.open(evmTxUrl(creationTx.txHash), "_blank", "noopener,noreferrer");
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  window.open(evmTxUrl(creationTx.txHash), "_blank", "noopener,noreferrer");
+                }
+              }}
+              className="flex items-center gap-1 font-mono text-orange-500 hover:text-orange-600 transition-colors cursor-pointer"
             >
               {creationTx.txHash.slice(0, 8)}…{creationTx.txHash.slice(-4)}
               <svg width="10" height="10" viewBox="0 0 12 12" fill="none" className="shrink-0">
                 <path d="M3.5 2H10V8.5M10 2L2 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
-            </a>
+            </span>
           </div>
         )}
       </div>

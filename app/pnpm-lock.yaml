@@ -32,6 +32,12 @@ importers:
       '@midl/satoshi-kit':
         specifier: ^3.0.2
         version: 3.0.2(@midl/connectors@3.0.2(@midl/core@3.0.2(@types/react@18.3.28)(react@18.3.1)(typescript@5.9.3)(use-sync-external-store@1.4.0(react@18.3.1))(ws@8.19.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)))(typescript@5.9.3))(@midl/core@3.0.2(@types/react@18.3.28)(react@18.3.1)(typescript@5.9.3)(use-sync-external-store@1.4.0(react@18.3.1))(ws@8.19.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)))(@midl/react@3.0.2(@tanstack/react-query@5.90.21(react@18.3.1))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.9.3)(use-sync-external-store@1.4.0(react@18.3.1))(ws@8.19.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)))(@tanstack/react-query@5.90.21(react@18.3.1))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@noble/curves':
+        specifier: ^2.0.1
+        version: 2.0.1
+      '@noble/hashes':
+        specifier: ^2.0.1
+        version: 2.0.1
       '@prisma/adapter-libsql':
         specifier: ^7.4.0
         version: 7.4.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)

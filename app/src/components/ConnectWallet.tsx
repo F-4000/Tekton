@@ -14,7 +14,7 @@ export function ConnectWallet() {
 
   if (!isConnected) {
     return (
-      <div className="flex items-center [&_button]:!bg-gradient-to-br [&_button]:!from-orange-500 [&_button]:!to-orange-600 [&_button]:!text-white [&_button]:!font-medium [&_button]:!rounded-lg [&_button]:!px-4 [&_button]:!py-2 [&_button]:!text-sm [&_button]:!border-0 [&_button]:!shadow-none [&_button]:hover:!brightness-105 [&_button]:!transition-all">
+      <div className="flex items-center [&_button]:!bg-gradient-to-br [&_button]:!from-orange-500 [&_button]:!to-orange-600 [&_button]:!text-white [&_button]:!font-medium [&_button]:!rounded-lg [&_button]:!px-4 [&_button]:!py-2 [&_button]:!text-sm [&_button]:!border-0 [&_button]:!shadow-none [&_button]:hover:!brightness-105 [&_button]:!transition-all [&_button]:!whitespace-nowrap [&_button]:!min-w-[140px] [&_button]:!overflow-hidden">
         <ConnectButton />
       </div>
     );

@@ -30,8 +30,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Rate limit (60 reads/min per address)
-  const rl = rateLimit(`get:${authedAddress}`, 60);
+  // Rate limit (300 reads/min per address — inbox + thread + unread all poll)
+  const rl = rateLimit(`get:${authedAddress}`, 300);
   if (!rl.allowed) {
     return NextResponse.json({ error: "Rate limited" }, { status: 429 });
   }

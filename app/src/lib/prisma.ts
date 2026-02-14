@@ -16,7 +16,7 @@ function createPrismaClient() {
     throw new Error("DATABASE_URL environment variable is required in production");
   }
   const adapter = new PrismaLibSql({
-    url: dbUrl ?? "file:./prisma/dev.db",
+    url: dbUrl ?? "file:./dev.db",
   });
   return new PrismaClient({ adapter });
 }
