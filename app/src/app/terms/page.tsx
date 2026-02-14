@@ -150,7 +150,7 @@ export default function TermsPage() {
           <h2 className="text-lg font-semibold text-[#0a0a0a] mb-3">12. Contact</h2>
           <p>
             For questions about these Terms, please open an issue on our{" "}
-            <a href="https://github.com/midl-xyz/midl-js" target="_blank" rel="noopener noreferrer" className="text-orange-600 hover:underline">
+            <a href="https://github.com/F-4000/Tekton" target="_blank" rel="noopener noreferrer" className="text-orange-600 hover:underline">
               GitHub repository
             </a>.
           </p>

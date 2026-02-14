@@ -57,3 +57,4 @@ contracts/deployments/
 
 # Helper/test scripts (contain regtest mnemonics)
 contracts/*.js
+WHITEPAPER.md

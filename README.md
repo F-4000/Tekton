@@ -14,6 +14,10 @@
   Built on <a href="https://midl.xyz">MIDL Protocol</a> for VibeHack 2026
 </p>
 
+<p align="center">
+  <a href="https://github.com/F-4000/Tekton">GitHub</a> · <a href="WHITEPAPER.pdf">Whitepaper</a>
+</p>
+
 ---
 
 ## The Problem

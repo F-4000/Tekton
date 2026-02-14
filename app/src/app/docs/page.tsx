@@ -194,6 +194,7 @@ Tekton currently runs on the MIDL **regtest (staging)** network. Tokens on this 
 - **Block Explorer (Bitcoin)**: https://mempool.staging.midl.xyz/
 
 **Developer Resources**
+- **Tekton GitHub**: https://github.com/F-4000/Tekton
 - **MIDL SDK Documentation**: https://js.midl.xyz/
 - **MIDL JavaScript SDK (GitHub)**: https://github.com/midl-xyz/midl-js`,
   },

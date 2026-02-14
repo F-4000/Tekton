@@ -14,11 +14,12 @@ const FOOTER_LINKS: Record<string, FooterLink[]> = {
     { label: "Market", href: "/market" },
     { label: "Create Offer", href: "/create" },
     { label: "Documentation", href: "/docs" },
+    { label: "GitHub", href: "https://github.com/F-4000/Tekton", external: true },
   ],
   Resources: [
     { label: "MIDL SDK Docs", href: "https://js.midl.xyz/", external: true },
     { label: "MIDL Protocol", href: "https://midl.xyz", external: true },
-    { label: "GitHub", href: "https://github.com/midl-xyz/midl-js", external: true },
+    { label: "MIDL SDK GitHub", href: "https://github.com/midl-xyz/midl-js", external: true },
     { label: "Faucet", href: "https://faucet.midl.xyz/", external: true },
   ],
   Explore: [
@@ -59,7 +60,7 @@ export function Footer() {
                 </svg>
               </a>
               <a
-                href="https://github.com/midl-xyz/midl-js"
+                href="https://github.com/F-4000/Tekton"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-black/30 hover:text-black/60 transition-colors"
