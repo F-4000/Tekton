@@ -1,0 +1,110 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #fafafa;
+  --foreground: #0a0a0a;
+  --accent: #f97316;
+  --surface: rgba(0, 0, 0, 0.02);
+  --border: rgba(0, 0, 0, 0.08);
+}
+
+/* ── Base ─────────────────────────────────────────── */
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-inter), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Scrollbar ────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.2); }
+
+/* ── Selection ────────────────────────────────────── */
+::selection { background: rgba(249,115,22,0.2); color: #000; }
+
+/* ── Component Layer ────────────────────────────────── */
+@layer components {
+  /* Card */
+  .card {
+    @apply relative rounded-2xl;
+    background: #fff;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .card-hover {
+    @apply transition-all duration-300;
+  }
+  .card-hover:hover {
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    transform: translateY(-2px);
+  }
+
+  /* Buttons */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 font-medium rounded-lg transition-all duration-200 px-5 py-2.5 text-sm;
+    background: linear-gradient(135deg, #f97316, #ea580c);
+    color: #fff;
+  }
+  .btn-primary:hover {
+    filter: brightness(1.05);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(249,115,22,0.3);
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 font-medium rounded-lg transition-all duration-200 px-5 py-2.5 text-sm;
+    background: #fff;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    color: #0a0a0a;
+  }
+  .btn-secondary:hover {
+    background: #f5f5f5;
+    border-color: rgba(0, 0, 0, 0.2);
+  }
+
+  /* Inputs */
+  .input-field {
+    @apply rounded-xl px-4 py-3 transition-all duration-200;
+    background: #fff;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    color: #0a0a0a;
+  }
+  .input-field::placeholder { color: rgba(0, 0, 0, 0.4); }
+  .input-field:focus {
+    outline: none;
+    border-color: #f97316;
+    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+  }
+
+  /* Tag / badge */
+  .tag {
+    @apply text-[10px] uppercase tracking-[0.1em] px-3 py-1 rounded-full font-medium;
+  }
+}
+
+/* ── Grid background pattern ───────────────────────── */
+.grid-pattern {
+  position: relative;
+}
+.grid-pattern::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image: 
+    linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Utilities ────────────────────────────────────── */
+@layer utilities {
+  .text-balance { text-wrap: balance; }
+}

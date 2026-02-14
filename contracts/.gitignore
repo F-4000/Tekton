@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+
+# Hardhat
+cache/
+artifacts/
+
+# Deployment artifacts (may contain addresses, keep if desired)
+# deployments/
+
+# TypeChain generated
+typechain/
+typechain-types/
+
+# Environment
+.env
+.env.local
+.env*.local
+
+# Hardhat vars
+.hardhat-vars
+
+# Coverage
+coverage/
+coverage.json
+
+# Test & utility scripts (seeding, debugging, bridging)
+bridge-tekton.js
+check-balances.js
+check-runes.js
+check-runes2.js
+create-btc-offers.js
+create-diverse-offers.js
+create-offers.js
+debug-runes.js
+deposit-tekton.js
+deposit-tekton2.js
+etch-rune.js
+explore-executor.js
+list-executor.js
+register-runes.js
+wait-deposit.js
+
+# OS
+.DS_Store

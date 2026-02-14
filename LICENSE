@@ -1,0 +1,45 @@
+Tekton Protocol - Proprietary License
+
+Copyright (c) 2026 Tekton. All rights reserved.
+
+NOTICE: This software and all associated documentation, source code, smart
+contracts, and configuration files (collectively, the "Software") are the
+exclusive property of Tekton and its contributors.
+
+RESTRICTIONS:
+
+1. No Permission to Copy. You may not reproduce, duplicate, copy, or
+   redistribute any portion of the Software without prior written consent
+   from the copyright holder.
+
+2. No Permission to Modify. You may not modify, adapt, translate, reverse
+   engineer, decompile, disassemble, or create derivative works based on
+   the Software.
+
+3. No Permission to Distribute. You may not sell, lease, sublicense, or
+   otherwise distribute the Software or any portion thereof to any third
+   party.
+
+4. No Permission for Commercial Use. You may not use the Software, in
+   whole or in part, for any commercial purpose without prior written
+   consent from the copyright holder.
+
+5. Viewing Only. This repository is made available for viewing and
+   evaluation purposes only. Accessing or reading the source code does not
+   grant any license or right to use, copy, modify, or distribute the
+   Software.
+
+SMART CONTRACTS: The deployed smart contract code on the MIDL Protocol
+blockchain is publicly verifiable by nature of the blockchain. This does
+not constitute a grant of any license to copy, modify, or redeploy the
+contract code.
+
+DISCLAIMER: THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
+KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+For licensing inquiries, please open an issue in this repository.

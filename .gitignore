@@ -1,0 +1,59 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.local
+.env*.local
+
+# SQLite databases
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Test wallets (contains private keys)
+.testwallets
+
+# Hardhat vars (may contain mnemonics)
+.hardhat-vars
+
+# Private keys / mnemonics
+*.pem
+*.key
+*.secret
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Zone.Identifier files (WSL artifacts)
+*:Zone.Identifier
+
+# Internal docs (not for public)
+AUDIT.md
+PLAN.md
+
+# Deploy scripts and deployment artifacts
+contracts/deploy/
+contracts/deployments/
+
+# Helper/test scripts (contain regtest mnemonics)
+contracts/*.js

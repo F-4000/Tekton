@@ -1,0 +1,46 @@
+{
+  "name": "app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.17.0",
+    "@midl/connectors": "^3.0.2",
+    "@midl/core": "^3.0.2",
+    "@midl/executor": "^3.0.2",
+    "@midl/executor-react": "^3.0.2",
+    "@midl/react": "^3.0.2",
+    "@midl/satoshi-kit": "^3.0.2",
+    "@prisma/adapter-libsql": "^7.4.0",
+    "@prisma/client": "^7.4.0",
+    "@tanstack/react-query": "^5.90.21",
+    "framer-motion": "^12.34.0",
+    "next": "14.2.35",
+    "prisma": "^7.4.0",
+    "react": "^18",
+    "react-dom": "^18",
+    "viem": "2.45.0",
+    "wagmi": "2.19.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.33",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "14.2.35",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^5.9.3"
+  },
+  "pnpm": {
+    "overrides": {
+      "viem": "npm:@midl/viem@2.45.0"
+    },
+    "//overrides": "MIDL Protocol requires a patched viem fork for Bitcoin L2 chain definitions. Pinned to exact version for supply-chain safety. Verify at: https://www.npmjs.com/package/@midl/viem"
+  }
+}
