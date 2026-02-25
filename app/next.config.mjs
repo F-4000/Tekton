@@ -3,6 +3,9 @@
 const isDev = process.env.NODE_ENV !== "production";
 
 const nextConfig = {
+  // @noble/* packages use ESM exports maps that break under Next.js webpack bundling.
+  // Mark them as external so Node.js resolves them natively at runtime.
+  serverExternalPackages: ["@noble/curves", "@noble/hashes"],
   // Suppress warnings from optional transitive dependencies we don't use:
   // - @react-native-async-storage/async-storage  (MetaMask SDK — mobile only)
   // - pino-pretty                                 (WalletConnect logger — optional)
