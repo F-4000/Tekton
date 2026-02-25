@@ -41,7 +41,7 @@
     "typescript": "^5.9.3"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["@prisma/engines", "prisma"],
+    "onlyBuiltDependencies": ["@prisma/engines", "prisma", "bufferutil", "utf-8-validate", "keccak", "unrs-resolver"],
     "overrides": {
       "viem": "npm:@midl/viem@2.45.0"
     },
