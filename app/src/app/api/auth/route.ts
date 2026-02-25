@@ -125,7 +125,8 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ token, expiresAt: expiresAt.toISOString() });
-  } catch {
+  } catch (err) {
+    console.error("[AUTH] Unhandled error:", err);
     return NextResponse.json(
       { error: "Authentication failed" },
       { status: 500 }
