@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useTraderProfile, useOfferTxReceipts } from "@/hooks/useEscrow";
+import { useTraderProfile } from "@/hooks/useEscrow";
 import {
   type Offer,
   OfferStatus,
@@ -16,7 +16,6 @@ import {
   CANCEL_COOLDOWN,
   ZERO_ADDRESS,
   tokenLabel,
-  evmTxUrl,
 } from "@/lib/contract";
 
 interface OfferCardProps {
@@ -31,18 +30,15 @@ export function OfferCard({
   offer,
   showActions = true,
   userAddress,
-}: OfferCardProps) {
+}: Readonly<OfferCardProps>) {
   const isExpired = BigInt(Math.floor(Date.now() / 1000)) >= offer.expiry;
   const isOpen = offer.status === OfferStatus.Open;
-  const isMine = userAddress && offer.maker.toLowerCase() === userAddress.toLowerCase();
+  const isMine = userAddress?.toLowerCase() === offer.maker.toLowerCase();
 
-  const { profile, score } = useTraderProfile(offer.maker as `0x${string}`);
+  const { profile, score } = useTraderProfile(offer.maker);
   const rawScore = score ? Number(score) : 0;
   const reliabilityScore = adjustedScore(rawScore, Number(profile?.tradesCompleted ?? 0n));
   const badge = getReliabilityBadge(reliabilityScore, profile?.tradesCompleted);
-
-  const { data: txReceipts } = useOfferTxReceipts(offerId);
-  const creationTx = txReceipts?.find((r) => r.event === "OfferCreated");
 
   const cancelRequested = offer.cancelRequestedAt > 0n;
   const cancelReady =
@@ -143,33 +139,6 @@ export function OfferCard({
           <span>Expires</span>
           <span>{isExpired ? "Expired" : timeLeft(offer.expiry)}</span>
         </div>
-        {creationTx && (
-          <div className="flex justify-between text-xs text-black/40">
-            <span>Tx Receipt</span>
-            <span
-              role="link"
-              tabIndex={0}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                window.open(evmTxUrl(creationTx.txHash), "_blank", "noopener,noreferrer");
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  window.open(evmTxUrl(creationTx.txHash), "_blank", "noopener,noreferrer");
-                }
-              }}
-              className="flex items-center gap-1 font-mono text-orange-500 hover:text-orange-600 transition-colors cursor-pointer"
-            >
-              {creationTx.txHash.slice(0, 8)}…{creationTx.txHash.slice(-4)}
-              <svg width="10" height="10" viewBox="0 0 12 12" fill="none" className="shrink-0">
-                <path d="M3.5 2H10V8.5M10 2L2 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </span>
-          </div>
-        )}
       </div>
 
       {/* CTA */}

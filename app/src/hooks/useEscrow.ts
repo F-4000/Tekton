@@ -1,7 +1,6 @@
 "use client";
 
-import { useReadContract, useReadContracts } from "wagmi";
-import { usePublicClient } from "wagmi";
+import { useReadContract, useReadContracts, usePublicClient } from "wagmi";
 import { useQuery } from "@tanstack/react-query";
 import {
   escrowContract,
@@ -30,7 +29,7 @@ export function useOffer(offerId: bigint | undefined) {
   return useReadContract({
     ...escrowContract,
     functionName: "getOffer",
-    args: offerId !== undefined ? [offerId] : undefined,
+    args: offerId === undefined ? undefined : [offerId],
     query: {
       enabled: offerId !== undefined,
     },
@@ -58,21 +57,21 @@ export function useTraderProfile(address: `0x${string}` | undefined) {
     ...escrowContract,
     functionName: "getProfile",
     args: address ? [address] : undefined,
-    query: { enabled: !!address },
+    query: { enabled: !!address, staleTime: 30_000 },
   });
 
   const scoreResult = useReadContract({
     ...escrowContract,
     functionName: "getReliabilityScore",
     args: address ? [address] : undefined,
-    query: { enabled: !!address },
+    query: { enabled: !!address, staleTime: 30_000 },
   });
 
   return {
     profile: profileResult.data as TraderProfile | undefined,
     score: scoreResult.data as bigint | undefined,
     isLoading: profileResult.isLoading || scoreResult.isLoading,
-    error: profileResult.error || scoreResult.error,
+    error: profileResult.error ?? scoreResult.error,
   };
 }
 
@@ -84,6 +83,7 @@ export function usePlatformConfig() {
       { ...escrowContract, functionName: "minStake" },
       { ...escrowContract, functionName: "platformFeeBps" },
       { ...escrowContract, functionName: "nextOfferId" },
+      { ...escrowContract, functionName: "CANCEL_COOLDOWN" },
     ],
   });
 
@@ -91,6 +91,7 @@ export function usePlatformConfig() {
     minStake: results.data?.[0]?.result as bigint | undefined,
     platformFeeBps: results.data?.[1]?.result as bigint | undefined,
     totalOffers: results.data?.[2]?.result as bigint | undefined,
+    cancelCooldown: results.data?.[3]?.result as bigint | undefined,
     isLoading: results.isLoading,
   };
 }
@@ -162,18 +163,18 @@ export function useOfferTxReceipts(offerId: bigint | undefined) {
       for (const eventName of eventEntries) {
         try {
           const logs = await publicClient.getContractEvents({
-            address: escrowContract.address as `0x${string}`,
+            address: escrowContract.address,
             abi: escrowContract.abi,
             eventName,
             args: { offerId },
-            fromBlock: 0n,
+            fromBlock: "earliest",
             toBlock: "latest",
           });
 
           for (const log of logs) {
             results.push({
               event: eventName,
-              txHash: log.transactionHash!,
+              txHash: log.transactionHash,
               blockNumber: log.blockNumber,
             });
           }

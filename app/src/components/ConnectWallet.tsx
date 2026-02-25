@@ -10,7 +10,7 @@ export function ConnectWallet() {
   const { isConnected } = useAccounts();
   const { disconnect } = useDisconnect();
   const evmAddress = useEVMAddress();
-  const { isAuthenticated, isAuthenticating, authFailed, authenticate } = useAuth();
+  const { isAuthenticated, isAuthenticating, authenticate } = useAuth();
 
   if (!isConnected) {
     return (
@@ -27,8 +27,8 @@ export function ConnectWallet() {
           {shortenAddress(evmAddress)}
         </span>
       )}
-      {/* Show Sign In button when wallet is connected but auth failed or not authenticated */}
-      {evmAddress && !isAuthenticated && !isAuthenticating && authFailed && (
+      {/* Show Sign In button when wallet is connected but not authenticated */}
+      {evmAddress && !isAuthenticated && !isAuthenticating && (
         <button
           onClick={() => authenticate()}
           aria-label="Sign in with wallet signature"

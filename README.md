@@ -56,6 +56,9 @@ Restrict trades to a specific wallet address. Useful for prearranged deals where
 ### P2P Messaging
 Built-in chat between trade counterparties. Coordinate details without leaving the platform.
 
+### End-to-End Encryption
+All messages are encrypted with ECDH key exchange derived from wallet signatures. Only the two participants can read their conversation — the server stores only ciphertext.
+
 ### Cancel Protection
 30-minute cooldown on cancellations protects takers from rug-pulls. Once someone starts taking an offer, the maker can't yank it away.
 
@@ -81,7 +84,7 @@ Built-in chat between trade counterparties. Coordinate details without leaving t
 | Next.js 14 (App Router) | React framework |
 | wagmi + viem (@midl/viem fork) | Wallet connections + contract interaction |
 | MIDL SDK (@midl/core, @midl/react) | Bitcoin L2 chain integration |
-| Prisma v7 + SQLite | Messaging + auth session storage |
+| Prisma v7 + Turso (libSQL) | Messaging + auth session storage (SQLite locally, Turso in production) |
 | Framer Motion | Animations |
 | TailwindCSS | Styling |
 
@@ -96,6 +99,7 @@ Built-in chat between trade counterparties. Coordinate details without leaving t
 ### Security
 
 - Wallet-signature auth (personal_sign, 24h sessions)
+- End-to-end encrypted messaging (ECDH + AES-256-GCM)
 - CSRF protection on all mutating API routes
 - Rate limiting on auth and messaging endpoints
 - Server-side text sanitization (control chars, RTL overrides, zero-width)
@@ -113,8 +117,8 @@ Tekton/
 │       ├── app/                   # Pages + API routes
 │       ├── components/            # React components
 │       ├── config/midl.ts         # Chain + token config
-│       ├── hooks/                 # useAuth, useEscrow, useMidlTx
-│       └── lib/                   # contract.ts, prisma.ts, api-auth.ts
+│       ├── hooks/                 # useAuth, useEscrow, useE2E, useMidlTx
+│       └── lib/                   # contract.ts, prisma.ts, api-auth.ts, e2e-crypto.ts
 ├── contracts/
 │   └── contracts/TektonEscrow.sol # Escrow smart contract (541 lines)
 ├── WHITEPAPER.pdf                 # Protocol whitepaper
@@ -135,7 +139,7 @@ Tekton is deployed on MIDL Protocol Regtest. To try it:
 
 ## Smart Contract
 
-**TektonEscrow.sol** deployed on MIDL Regtest at `0x0FCF1E8F42B98299a44C2A4d1F06298808A5E326`
+**TektonEscrow.sol** deployed on MIDL Regtest at `0xde2D309d5d79846e87A426999DbeEDdbB48BC29E`
 
 | Function | Purpose |
 |---|---|

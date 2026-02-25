@@ -36,7 +36,8 @@ model Message {
   id             String   @id @default(cuid())
   conversationId String
   sender         String   // Lowercase EVM address
-  text           String
+  text           String   // AES-256-GCM ciphertext (base64) — only participants can decrypt
+  iv             String?  // AES-GCM initialization vector (base64), null = legacy plaintext
   createdAt      DateTime @default(now())
   readAt         DateTime?
 
@@ -57,4 +58,17 @@ model AuthSession {
 
   @@index([address])
   @@index([expiresAt])
+}
+
+// ─── E2E Encryption Keys ─────────────────────────────────────
+// Stores the user's secp256k1 public key for ECDH key exchange.
+// Derived client-side from a deterministic wallet signature.
+// One key per address — persists across sessions.
+
+model UserEncryptionKey {
+  id        String   @id @default(cuid())
+  address   String   @unique // Lowercase EVM address
+  publicKey String   // Hex-encoded compressed secp256k1 public key (33 bytes)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

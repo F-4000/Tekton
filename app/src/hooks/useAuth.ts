@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { useSignMessage } from "@midl/react";
+import { useSignMessage, useAccounts } from "@midl/react";
+import { SignMessageProtocol } from "@midl/core";
 import { useEVMAddress } from "@midl/executor-react";
 
 const AUTH_TOKEN_KEY = "tekton_auth_token";
@@ -17,15 +18,17 @@ const AUTH_ADDRESS_KEY = "tekton_auth_address";
  *   3. Stores the session token in localStorage
  *   4. Provides the token for API calls
  *
- * Auto-authenticates when a wallet is connected and no valid token exists.
+ * Authentication is triggered manually via the Sign In button
+ * or automatically when authFetch is called with autoAuth: true.
  */
 export function useAuth() {
   const evmAddress = useEVMAddress();
+  const { paymentAccount } = useAccounts();
   const { signMessageAsync } = useSignMessage();
 
   // Initialize token synchronously from localStorage to prevent auto-auth race
   const [token, setToken] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
+    if (globalThis.window === undefined) return null;
     const stored = localStorage.getItem(AUTH_TOKEN_KEY);
     const expires = localStorage.getItem(AUTH_EXPIRES_KEY);
     if (stored && expires && new Date(expires) > new Date()) {
@@ -36,9 +39,7 @@ export function useAuth() {
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authFailed, setAuthFailed] = useState(false);
   const authAttemptedRef = useRef(false);
-  const retryCountRef = useRef(0);
   const pendingAuthRef = useRef<Promise<string | null> | null>(null);
-  const MAX_AUTO_RETRIES = 3;
 
   const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
@@ -96,15 +97,14 @@ export function useAuth() {
         authAttemptedRef.current = false;
       }
     };
-    window.addEventListener("storage", handler);
-    return () => window.removeEventListener("storage", handler);
+    globalThis.addEventListener("storage", handler);
+    return () => globalThis.removeEventListener("storage", handler);
   }, []);
 
   // Reset state when wallet disconnects
   useEffect(() => {
     if (!evmAddress) {
       authAttemptedRef.current = false;
-      retryCountRef.current = 0;
       setAuthFailed(false);
     }
   }, [evmAddress]);
@@ -125,10 +125,11 @@ export function useAuth() {
         const message = `Tekton Auth: ${Date.now()}`;
 
         // Sign the message with the MIDL wallet (ECDSA protocol)
-        const result = await signMessageAsync({ message, protocol: "ECDSA" });
+        const result = await signMessageAsync({ message, protocol: SignMessageProtocol.Ecdsa });
         const signature = result.signature;
 
-        // Send to auth endpoint
+        // Send to auth endpoint with payment account's public key
+        // Server verifies: keccak256(decompress(pubkey)) == claimed EVM address
         const res = await fetch("/api/auth", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -136,6 +137,7 @@ export function useAuth() {
             address: evmAddress,
             message,
             signature,
+            publicKey: paymentAccount?.publicKey,
           }),
         });
 
@@ -152,6 +154,9 @@ export function useAuth() {
         localStorage.setItem(AUTH_ADDRESS_KEY, evmAddress.toLowerCase());
         setToken(data.token);
 
+        // Notify other components (e.g. sidebar) that auth is ready
+        globalThis.dispatchEvent(new Event("tekton-auth-success"));
+
         return data.token as string;
       } catch {
         // Auth failed - clear state and allow manual retry
@@ -166,7 +171,7 @@ export function useAuth() {
 
     pendingAuthRef.current = authPromise;
     return authPromise;
-  }, [evmAddress, signMessageAsync]);
+  }, [evmAddress, signMessageAsync, paymentAccount?.publicKey]);
 
   /** Read current token from localStorage (always fresh, no stale closures) */
   const getCurrentToken = useCallback((): string | null => {

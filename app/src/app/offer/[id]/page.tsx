@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { useOffer, useOfferTxReceipts } from "@/hooks/useEscrow";
+import { useOffer, useOfferTxReceipts, usePlatformConfig } from "@/hooks/useEscrow";
 import { useAccounts } from "@midl/react";
 import { useEVMAddress } from "@midl/executor-react";
 import { encodeFunctionData } from "viem";
@@ -20,7 +20,6 @@ import {
   getStatusColor,
   getStatusLabel,
   ZERO_ADDRESS,
-  CANCEL_COOLDOWN,
   tokenLabel,
   evmTxUrl,
   evmAddressUrl,
@@ -44,6 +43,8 @@ export default function OfferDetailPage() {
 
   const { data: offerData, refetch } = useOffer(parsedId ?? undefined);
   const offer = offerData as Offer | undefined;
+  const { cancelCooldown: contractCooldown } = usePlatformConfig();
+  const CANCEL_COOLDOWN = contractCooldown ?? 1800n; // fallback to 30min
 
   const { isConnected } = useAccounts();
   const evmAddress = useEVMAddress();
@@ -317,7 +318,7 @@ export default function OfferDetailPage() {
             <div className="border-t border-black/[0.06] pt-5">
               <h4 className="text-xs uppercase tracking-wider text-black/40 mb-3">Transaction Receipts</h4>
               <div className="space-y-2">
-                {txReceipts.map((receipt, i) => {
+                {txReceipts.map((receipt) => {
                   const eventLabels: Record<string, { label: string; icon: string; color: string }> = {
                     OfferCreated: { label: "Created", icon: "✦", color: "text-green-600" },
                     OfferSettled: { label: "Settled", icon: "✓", color: "text-blue-600" },
@@ -328,7 +329,7 @@ export default function OfferDetailPage() {
                   const meta = eventLabels[receipt.event] ?? { label: receipt.event, icon: "•", color: "text-black/50" };
                   return (
                     <a
-                      key={i}
+                      key={receipt.txHash}
                       href={evmTxUrl(receipt.txHash)}
                       target="_blank"
                       rel="noopener noreferrer"

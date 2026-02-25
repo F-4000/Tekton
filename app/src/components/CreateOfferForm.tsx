@@ -2,9 +2,8 @@
 
 import { useState, useMemo } from "react";
 import { KNOWN_TOKENS } from "@/config/midl";
-import { parseTokenAmount, formatTokenAmount, ZERO_ADDRESS, erc20Abi, getTokenDecimals } from "@/lib/contract";
+import { parseTokenAmount, formatTokenAmount, formatBTC, ZERO_ADDRESS, erc20Abi, getTokenDecimals } from "@/lib/contract";
 import { usePlatformConfig } from "@/hooks/useEscrow";
-import { formatBTC } from "@/lib/contract";
 import { formatUnits } from "viem";
 import { useBalance } from "@midl/react";
 import { useEVMAddress } from "@midl/executor-react";
@@ -23,8 +22,8 @@ interface CreateOfferFormProps {
   isLoading?: boolean;
 }
 
-export function CreateOfferForm({ onSubmit, isLoading }: CreateOfferFormProps) {
-  const { minStake, platformFeeBps } = usePlatformConfig();
+export function CreateOfferForm({ onSubmit, isLoading }: Readonly<CreateOfferFormProps>) {
+  const { minStake, platformFeeBps, cancelCooldown } = usePlatformConfig();
   const { balance: btcBalance } = useBalance(); // BTC balance in satoshis
   const evmAddress = useEVMAddress();
 
@@ -111,7 +110,7 @@ export function CreateOfferForm({ onSubmit, isLoading }: CreateOfferFormProps) {
       erc20Balance !== undefined &&
       parsedMaker > 0n
     ) {
-      const bal = erc20Balance as bigint;
+      const bal = erc20Balance;
       if (parsedMaker > bal) {
         const sym = getTokenSymbol(resolvedMakerToken);
         balErr = `Insufficient ${sym} balance. Need ${formatTokenAmount(parsedMaker, resolvedMakerToken)} but have ${formatTokenAmount(bal, resolvedMakerToken)} ${sym}`;
@@ -133,10 +132,10 @@ export function CreateOfferForm({ onSubmit, isLoading }: CreateOfferFormProps) {
     if (makerToken === CUSTOM_VALUE && !isValidAddress(makerCustomAddr)) return;
     if (takerToken === CUSTOM_VALUE && !isValidAddress(takerCustomAddr)) return;
     if (resolvedMakerToken.toLowerCase() === resolvedTakerToken.toLowerCase()) return;
-    if (isPrivate && allowedTaker && !isValidAddress(allowedTaker)) return;
+    if (isPrivate && !isValidAddress(allowedTaker)) return;
     if (balanceError) return;
 
-    const parsedExpiry = parseInt(expiryHours);
+    const parsedExpiry = Number.parseInt(expiryHours);
     if (!Number.isFinite(parsedExpiry) || parsedExpiry < 1) return;
 
     onSubmit({
@@ -154,6 +153,31 @@ export function CreateOfferForm({ onSubmit, isLoading }: CreateOfferFormProps) {
 
   const feePercent = platformFeeBps ? Number(platformFeeBps) / 100 : 0;
 
+  // Compute balance hint for the inline area
+  let balanceHint: React.ReactNode = null;
+  if (balanceError) {
+    balanceHint = (
+      <p className="text-xs text-red-500 flex items-center gap-1">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm-.75 3.75a.75.75 0 011.5 0v3.5a.75.75 0 01-1.5 0v-3.5zM8 11a1 1 0 110 2 1 1 0 010-2z"/></svg>
+        {balanceError}
+      </p>
+    );
+  } else if (isSellingERC20 && btcBalance !== undefined) {
+    balanceHint = (
+      <p className="text-[11px] text-black/30">
+        + {minStake ? formatBTC(minStake) : "0.0001"} BTC stake required &middot; Your BTC: {formatBTC(BigInt(btcBalance) * 10_000_000_000n)}
+      </p>
+    );
+  }
+
+  // Button label
+  let buttonLabel = "Create Offer";
+  if (isLoading) {
+    buttonLabel = "Creating\u2026";
+  } else if (makerAmount && takerAmount && resolvedTakerToken) {
+    buttonLabel = `Sell ${makerAmount} ${getTokenSymbol(resolvedMakerToken)} for ${takerAmount} ${getTokenSymbol(resolvedTakerToken)}`;
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="card p-6 sm:p-8 space-y-5">
@@ -162,7 +186,7 @@ export function CreateOfferForm({ onSubmit, isLoading }: CreateOfferFormProps) {
         {/* Selling */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <label className="text-sm text-black/50">You&apos;re selling</label>
+            <label htmlFor="maker-amount" className="text-sm text-black/50">You&apos;re selling</label>
             {/* Inline balance */}
             {resolvedMakerToken === ZERO_ADDRESS && btcBalance !== undefined && (
               <button
@@ -184,26 +208,27 @@ export function CreateOfferForm({ onSubmit, isLoading }: CreateOfferFormProps) {
                 type="button"
                 onClick={() => {
                   const decimals = getTokenDecimals(resolvedMakerToken);
-                  setMakerAmount(formatUnits(erc20Balance as bigint, decimals));
+                  setMakerAmount(formatUnits(erc20Balance, decimals));
                 }}
                 className={`text-xs transition-colors ${
                   balanceError ? "text-red-500" : "text-black/40 hover:text-orange-500"
                 }`}
               >
-                Balance: {formatTokenAmount(erc20Balance as bigint, resolvedMakerToken)} {getTokenSymbol(resolvedMakerToken)}
+                Balance: {formatTokenAmount(erc20Balance, resolvedMakerToken)} {getTokenSymbol(resolvedMakerToken)}
                 <span className="ml-1 text-[10px] font-medium text-orange-500">MAX</span>
               </button>
             )}
           </div>
           <div className="flex gap-2">
             <input
+              id="maker-amount"
               type="number"
               step="any"
               min="0"
               placeholder="Amount"
               value={makerAmount}
               onChange={(e) => setMakerAmount(e.target.value)}
-              className={`flex-1 input-field ${balanceError ? "!border-red-300 focus:!border-red-400" : ""}`}
+              className="flex-1 input-field"
               required
             />
             <select
@@ -234,26 +259,18 @@ export function CreateOfferForm({ onSubmit, isLoading }: CreateOfferFormProps) {
           )}
           {/* Inline balance error - fixed height so form doesn't shift */}
           <div className="min-h-[20px] mt-1.5">
-            {balanceError ? (
-              <p className="text-xs text-red-500 flex items-center gap-1">
-                <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm-.75 3.75a.75.75 0 011.5 0v3.5a.75.75 0 01-1.5 0v-3.5zM8 11a1 1 0 110 2 1 1 0 010-2z"/></svg>
-                {balanceError}
-              </p>
-            ) : isSellingERC20 && btcBalance !== undefined ? (
-              <p className="text-[11px] text-black/30">
-                + {minStake ? formatBTC(minStake) : "0.0001"} BTC stake required · Your BTC: {formatBTC(BigInt(btcBalance) * 10_000_000_000n)}
-              </p>
-            ) : null}
+            {balanceHint}
           </div>
         </div>
 
         {/* Wanting */}
         <div>
-          <label className="block text-sm text-black/50 mb-2">
+          <label htmlFor="taker-amount" className="block text-sm text-black/50 mb-2">
             You want in return
           </label>
           <div className="flex gap-2">
             <input
+              id="taker-amount"
               type="number"
               step="any"
               min="0"
@@ -298,10 +315,11 @@ export function CreateOfferForm({ onSubmit, isLoading }: CreateOfferFormProps) {
 
         {/* Expiry */}
         <div>
-          <label className="block text-sm text-black/50 mb-2">
+          <label htmlFor="expiry-hours" className="block text-sm text-black/50 mb-2">
             Expires in (hours)
           </label>
           <input
+            id="expiry-hours"
             type="number"
             min="1"
             max="720"
@@ -320,7 +338,7 @@ export function CreateOfferForm({ onSubmit, isLoading }: CreateOfferFormProps) {
               onChange={(e) => setIsPrivate(e.target.checked)}
               className="rounded bg-white border-black/10 text-orange-500 focus:ring-orange-500/20"
             />
-            Private offer (specific taker only)
+            {"Private offer (specific taker only)"}
           </label>
           {isPrivate && (
             <input
@@ -345,7 +363,7 @@ export function CreateOfferForm({ onSubmit, isLoading }: CreateOfferFormProps) {
           </div>
           <div className="flex justify-between text-black/40">
             <span>Cancel cooldown</span>
-            <span className="text-[#0a0a0a]">30 minutes</span>
+            <span className="text-[#0a0a0a]">{cancelCooldown ? `${Number(cancelCooldown) / 60} minutes` : "…"}</span>
           </div>
           {resolvedMakerToken === ZERO_ADDRESS && makerAmount && (
             <div className="flex justify-between text-black/40 border-t border-black/[0.06] pt-2 mt-2">
@@ -369,16 +387,11 @@ export function CreateOfferForm({ onSubmit, isLoading }: CreateOfferFormProps) {
             (makerToken === CUSTOM_VALUE && !isValidAddress(makerCustomAddr)) ||
             (takerToken === CUSTOM_VALUE && !isValidAddress(takerCustomAddr)) ||
             (resolvedMakerToken.toLowerCase() === resolvedTakerToken.toLowerCase()) ||
-            (isPrivate && allowedTaker !== "" && !isValidAddress(allowedTaker))
+            (isPrivate && !isValidAddress(allowedTaker))
           }
           className="w-full btn-primary py-3.5 disabled:opacity-30 disabled:cursor-not-allowed disabled:shadow-none"
         >
-          {isLoading
-            ? "Creating…"
-            : makerAmount && takerAmount && resolvedTakerToken
-              ? `Sell ${makerAmount} ${getTokenSymbol(resolvedMakerToken)} for ${takerAmount} ${getTokenSymbol(resolvedTakerToken)}`
-              : "Create Offer"
-          }
+          {buttonLabel}
         </button>
       </div>
     </form>

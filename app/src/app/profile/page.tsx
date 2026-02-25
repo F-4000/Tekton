@@ -10,7 +10,7 @@ import { OfferCard } from "@/components/OfferCard";
 import type { Offer } from "@/lib/contract";
 import { motion } from "framer-motion";
 
-function CopyableAddress({ address }: { address: string }) {
+function CopyableAddress({ address }: Readonly<{ address: string }>) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -42,7 +42,7 @@ function CopyableAddress({ address }: { address: string }) {
   );
 }
 
-function OfferByIdCard({ offerId, offer }: { offerId: bigint; offer: Offer | undefined }) {
+function OfferByIdCard({ offerId, offer }: Readonly<{ offerId: bigint; offer: Offer | undefined }>) {
   if (!offer) {
     return (
       <div className="card p-6">
@@ -66,7 +66,9 @@ export default function ProfilePage() {
   const ids = (offerIds as bigint[]) ?? [];
   const { offers, isLoading: batchLoading } = useOffersBatch(ids);
 
-  if (!isConnected || !evmAddress) {
+  const ZERO_ADDR = "0x0000000000000000000000000000000000000000";
+
+  if (!isConnected || !evmAddress || evmAddress === ZERO_ADDR) {
     return (
       <div className="min-h-[80vh] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <motion.div
@@ -119,8 +121,8 @@ export default function ProfilePage() {
         transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
         className="grid md:grid-cols-2 gap-6 mb-10"
       >
-        <TraderProfileCard address={evmAddress as `0x${string}`} />
-        <WalletBalances evmAddress={evmAddress as `0x${string}`} />
+        <TraderProfileCard address={evmAddress} />
+        <WalletBalances evmAddress={evmAddress} />
       </motion.div>
 
       {/* Offers */}
@@ -136,18 +138,20 @@ export default function ProfilePage() {
         <div className="h-px flex-1 ml-6 bg-gradient-to-r from-black/[0.06] to-transparent" />
       </div>
 
-      {loading ? (
+      {loading && (
         <div className="flex justify-center py-12">
           <div className="flex items-center gap-3 text-black/40">
             <div className="w-4 h-4 border-2 border-black/10 border-t-orange-500 rounded-full animate-spin" />
             Loading your offers…
           </div>
         </div>
-      ) : ids.length === 0 ? (
+      )}
+      {!loading && ids.length === 0 && (
         <div className="text-center py-12 text-black/40">
           You haven&apos;t created or participated in any offers yet.
         </div>
-      ) : (
+      )}
+      {!loading && ids.length > 0 && (
         <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
           {ids.map((id, idx) => (
             <OfferByIdCard key={id.toString()} offerId={id} offer={offers[idx]} />

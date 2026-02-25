@@ -24,6 +24,7 @@ interface ConversationPreview {
   lastMessage: {
     sender: string;
     text: string;
+    iv?: string | null;
     timestamp: number;
   } | null;
   unreadCount: number;
@@ -36,11 +37,11 @@ function ConversationItem({
   conv,
   active,
   evmAddress,
-}: {
+}: Readonly<{
   conv: ConversationPreview;
   active: boolean;
   evmAddress: string;
-}) {
+}>) {
   let parsedId: bigint | null = null;
   try {
     parsedId = BigInt(conv.offerId);
@@ -108,7 +109,9 @@ function ConversationItem({
         {/* Last message preview */}
         <div className="flex items-center gap-1.5 mt-0.5">
           <p className="text-[11px] text-black/40 truncate flex-1">
-            {conv.lastMessage?.text ?? "No messages yet"}
+            {conv.lastMessage?.iv
+              ? "�️ Encrypted message"
+              : conv.lastMessage?.text ?? "No messages yet"}
           </p>
           {conv.unreadCount > 0 && (
             <span className="w-[18px] h-[18px] bg-orange-500 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0">
@@ -125,13 +128,13 @@ function ConversationItem({
 
 export default function MessagesLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;
-}) {
+}>) {
   const pathname = usePathname();
   const { isConnected } = useAccounts();
   const evmAddress = useEVMAddress();
-  const { authFetch, isAuthenticated } = useAuth();
+  const { authFetch } = useAuth();
   const [conversations, setConversations] = useState<ConversationPreview[]>([]);
   const [loading, setLoading] = useState(true);
   const prevUnreadRef = useRef(-1);
@@ -142,14 +145,15 @@ export default function MessagesLayout({
   /* ── Fetch inbox ──────────────────────────────────────────── */
 
   const fetchInbox = useCallback(async () => {
-    if (!evmAddress || !isAuthenticated) {
+    if (!evmAddress) {
       setLoading(false);
       return;
     }
     try {
-      const res = await authFetch(
-        `/api/messages?inbox=true`
-      );
+      // No autoAuth — sidebar should never trigger wallet popups.
+      // authFetch reads the token from localStorage via getCurrentToken(),
+      // so it picks up tokens stored by any useAuth instance.
+      const res = await authFetch(`/api/messages?inbox=true`);
       if (res.ok) {
         const data = await res.json();
         setConversations(data.conversations ?? []);
@@ -159,24 +163,28 @@ export default function MessagesLayout({
     } finally {
       setLoading(false);
     }
-  }, [evmAddress, isAuthenticated, authFetch]);
+  }, [evmAddress, authFetch]);
 
   useEffect(() => {
     fetchInbox();
     const timer = setInterval(fetchInbox, 5000);
-    // Also refresh when a message is sent from the thread page
+    // Refresh when a message is sent from the thread page
     const onMessageSent = () => fetchInbox();
-    window.addEventListener("tekton-message-sent", onMessageSent);
+    // Refresh immediately when auth succeeds (from any component)
+    const onAuthSuccess = () => fetchInbox();
+    globalThis.addEventListener("tekton-message-sent", onMessageSent);
+    globalThis.addEventListener("tekton-auth-success", onAuthSuccess);
     return () => {
       clearInterval(timer);
-      window.removeEventListener("tekton-message-sent", onMessageSent);
+      globalThis.removeEventListener("tekton-message-sent", onMessageSent);
+      globalThis.removeEventListener("tekton-auth-success", onAuthSuccess);
     };
   }, [fetchInbox]);
 
   /* ── Request notification permission ─────────────────────── */
 
   useEffect(() => {
-    if (typeof window !== "undefined" && "Notification" in window) {
+    if (globalThis.window !== undefined && "Notification" in globalThis) {
       if (Notification.permission === "default") {
         Notification.requestPermission();
       }
@@ -197,12 +205,14 @@ export default function MessagesLayout({
     ) {
       // Browser notification
       if (
-        typeof window !== "undefined" &&
-        "Notification" in window &&
+        globalThis.window !== undefined &&
+        "Notification" in globalThis &&
         Notification.permission === "granted"
       ) {
         const latest = conversations.find((c) => c.unreadCount > 0);
-        const body = latest?.lastMessage?.text ?? "You have a new message";
+        const body = latest?.lastMessage?.iv
+          ? "You have a new encrypted message"
+          : latest?.lastMessage?.text ?? "You have a new message";
         new Notification("Tekton – New Message", {
           body,
           icon: "/logo-square.png",
@@ -298,17 +308,18 @@ export default function MessagesLayout({
                     />
                   </svg>
                   {conversations.length} conversation
-                  {conversations.length !== 1 ? "s" : ""}
+                  {conversations.length === 1 ? "" : "s"}
                 </div>
               </div>
 
               {/* Conversation list */}
               <div className="flex-1 overflow-y-auto p-2 space-y-1">
-                {loading ? (
+                {loading && (
                   <div className="flex justify-center py-12">
                     <div className="w-4 h-4 border-2 border-black/10 border-t-orange-500 rounded-full animate-spin" />
                   </div>
-                ) : conversations.length === 0 ? (
+                )}
+                {!loading && conversations.length === 0 && (
                   <div className="text-center py-12 px-4">
                     <div className="w-12 h-12 bg-black/[0.03] rounded-2xl flex items-center justify-center mx-auto mb-3">
                       <svg
@@ -335,16 +346,17 @@ export default function MessagesLayout({
                       Browse offers &rarr;
                     </Link>
                   </div>
-                ) : (
+                )}
+                {!loading && conversations.length > 0 &&
                   conversations.map((conv) => (
                     <ConversationItem
                       key={conv.offerId}
                       conv={conv}
                       active={activeOfferId === conv.offerId}
-                      evmAddress={evmAddress!}
+                      evmAddress={evmAddress}
                     />
                   ))
-                )}
+                }
               </div>
             </div>
           </div>

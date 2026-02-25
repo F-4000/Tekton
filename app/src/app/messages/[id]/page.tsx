@@ -7,6 +7,7 @@ import { useAccounts } from "@midl/react";
 import { useEVMAddress } from "@midl/executor-react";
 import { useOffer } from "@/hooks/useEscrow";
 import { useAuth } from "@/hooks/useAuth";
+import { useE2E } from "@/hooks/useE2E";
 import {
   shortenAddress,
   formatTokenAmount,
@@ -20,8 +21,10 @@ interface ChatMessage {
   offerId: string;
   sender: string;
   text: string;
+  iv: string | null; // null = legacy plaintext
   timestamp: number;
   read: boolean;
+  decrypted?: boolean; // true if successfully decrypted
 }
 
 export default function MessageThreadPage() {
@@ -31,6 +34,7 @@ export default function MessageThreadPage() {
   const { isConnected } = useAccounts();
   const evmAddress = useEVMAddress();
   const { authFetch } = useAuth();
+  const { isSetup: e2eReady, encrypt, decrypt, setupEncryption } = useE2E();
 
   let parsedId: bigint | null = null;
   try {
@@ -49,6 +53,9 @@ export default function MessageThreadPage() {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const prevCountRef = useRef(0);
+  // Counterparty encryption public key (fetched from server)
+  const counterpartyKeyRef = useRef<string | null>(null);
+  const conversationIdRef = useRef<string | null>(null);
 
   const fetchMessages = useCallback(async () => {
     if (!evmAddress) {
@@ -57,18 +64,60 @@ export default function MessageThreadPage() {
     }
     try {
       const res = await authFetch(
-        `/api/messages?offerId=${offerId}`
+        `/api/messages?offerId=${offerId}&markRead=true`,
+        { autoAuth: true }
       );
       if (res.ok) {
         const data = await res.json();
-        setMessages(data.messages ?? []);
+        const raw: ChatMessage[] = data.messages ?? [];
+        const encKeys: Record<string, string> = data.encryptionKeys ?? {};
+
+        // Determine counterparty's encryption key
+        const myAddr = evmAddress.toLowerCase();
+        const theirAddr = Object.keys(encKeys).find((a) => a !== myAddr);
+        if (theirAddr && encKeys[theirAddr]) {
+          counterpartyKeyRef.current = encKeys[theirAddr];
+        }
+        // We need the conversation ID for key derivation — use offerId as stable ID
+        conversationIdRef.current = offerId;
+
+        // Decrypt encrypted messages
+        if (e2eReady && counterpartyKeyRef.current) {
+          const decrypted = await Promise.all(
+            raw.map(async (m) => {
+              if (m.iv) {
+                const plaintext = await decrypt(
+                  m.text,
+                  m.iv,
+                  counterpartyKeyRef.current!,
+                  offerId,
+                );
+                if (plaintext !== null) {
+                  return { ...m, text: plaintext, decrypted: true };
+                }
+                return { ...m, text: "\uD83D\uDEE1\uFE0F Encrypted message", decrypted: false };
+              }
+              return { ...m, decrypted: false }; // Legacy plaintext
+            }),
+          );
+          setMessages(decrypted);
+        } else {
+          // E2E not set up — show encrypted messages as locked
+          setMessages(
+            raw.map((m) =>
+              m.iv
+                ? { ...m, text: "\uD83D\uDEE1\uFE0F Encrypted (set up E2E to read)", decrypted: false }
+                : { ...m, decrypted: false },
+            ),
+          );
+        }
       }
     } catch {
       /* ignore */
     } finally {
       setInitialLoad(false);
     }
-  }, [offerId, evmAddress, authFetch]);
+  }, [offerId, evmAddress, authFetch, e2eReady, decrypt]);
 
   // Reset state when switching to a different conversation
   useEffect(() => {
@@ -101,25 +150,45 @@ export default function MessageThreadPage() {
     setSending(true);
     setSendError(false);
     try {
-      const counterparty =
-        offer?.maker?.toLowerCase() !== evmAddress.toLowerCase()
-          ? offer?.maker
-          : undefined;
+      // Determine counterparty for conversation creation.
+      // If we're the maker, we can only reply to existing conversations;
+      // the API will find the existing conversation by offerId.
+      // If we're a taker, counterparty is the maker.
+      const iAmMaker = offer?.maker?.toLowerCase() === evmAddress.toLowerCase();
+      const counterparty = iAmMaker ? undefined : offer?.maker;
+
+      let text = input.trim();
+      let iv: string | undefined;
+
+      // Encrypt if E2E is ready and we have the counterparty's key
+      if (e2eReady && counterpartyKeyRef.current) {
+        const encrypted = await encrypt(
+          text,
+          counterpartyKeyRef.current,
+          offerId,
+        );
+        if (encrypted) {
+          text = encrypted.ciphertext;
+          iv = encrypted.iv;
+        }
+      }
+
       const res = await authFetch("/api/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         autoAuth: true,
         body: JSON.stringify({
           offerId,
-          text: input.trim(),
+          text,
           counterparty,
+          ...(iv ? { iv } : {}),
         }),
       });
       if (res.ok) {
         setInput("");
         await fetchMessages();
         // Notify the sidebar layout to refresh conversations
-        window.dispatchEvent(new Event("tekton-message-sent"));
+        globalThis.dispatchEvent(new Event("tekton-message-sent"));
       } else {
         setSendError(true);
       }
@@ -202,6 +271,12 @@ export default function MessageThreadPage() {
             >
               View offer
             </Link>
+            {e2eReady && counterpartyKeyRef.current && (
+              <span className="text-[10px] bg-green-50 text-green-600 px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/></svg>
+                E2E encrypted
+              </span>
+            )}
           </div>
           {offer && offer.maker !== ZERO_ADDRESS && (
             <p className="text-[11px] text-black/40 mt-0.5 truncate">
@@ -210,6 +285,22 @@ export default function MessageThreadPage() {
           )}
         </div>
       </div>
+
+      {/* E2E setup banner */}
+      {!e2eReady && isConnected && (
+        <div className="flex items-center gap-3 px-4 py-2.5 bg-amber-50 border-b border-amber-100">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-amber-500 shrink-0">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
+          </svg>
+          <p className="text-xs text-amber-700 flex-1">Enable end-to-end encryption to secure your messages.</p>
+          <button
+            onClick={() => setupEncryption()}
+            className="text-xs font-medium text-amber-700 bg-amber-100 hover:bg-amber-200 px-3 py-1 rounded-lg transition-colors shrink-0"
+          >
+            Set up E2E
+          </button>
+        </div>
+      )}
 
       {/* Messages area */}
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3">
@@ -242,7 +333,9 @@ export default function MessageThreadPage() {
               </svg>
             </div>
             <p className="text-sm text-black/30">
-              Start the conversation. Messages are private between you and the counterparty.
+              {offer?.maker?.toLowerCase() === evmAddress?.toLowerCase()
+                ? "No messages yet. Buyers will appear here when they reach out."
+                : "Start the conversation. Messages are private between you and the counterparty."}
             </p>
           </div>
         )}
@@ -292,7 +385,14 @@ export default function MessageThreadPage() {
                         : "bg-black/[0.04] text-[#0a0a0a] rounded-bl-md"
                     }`}
                   >
-                    {msg.text}
+                    <span className="flex items-center gap-1.5">
+                      {msg.iv && msg.decrypted && (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" className={`shrink-0 ${self ? 'text-white/60' : 'text-green-500/70'}`}>
+                          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
+                        </svg>
+                      )}
+                      <span>{msg.text}</span>
+                    </span>
                   </div>
                   <div
                     className={`flex items-center gap-1.5 mt-1 ${
@@ -316,6 +416,14 @@ export default function MessageThreadPage() {
       </div>
 
       {/* Input area */}
+      {/* Makers can only reply once a taker has started the conversation */}
+      {offer?.maker?.toLowerCase() === evmAddress?.toLowerCase() && messages.length === 0 && !initialLoad ? (
+        <div className="border-t border-black/[0.06] p-4 bg-black/[0.02] rounded-b-2xl">
+          <p className="text-xs text-black/40 text-center">
+            Waiting for a buyer to start the conversation.
+          </p>
+        </div>
+      ) : (
       <div className="border-t border-black/[0.06] p-3 bg-white rounded-b-2xl">
         {sendError && (
           <p className="text-xs text-red-500 mb-2 px-1">Failed to send message. Please try again.</p>
@@ -360,6 +468,7 @@ export default function MessageThreadPage() {
         </button>
         </div>
       </div>
+      )}
     </div>
   );
 }

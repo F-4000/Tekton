@@ -97,6 +97,7 @@ export async function GET(req: NextRequest) {
               offerId: conv.offerId,
               sender: lastMessage.sender,
               text: lastMessage.text,
+              iv: lastMessage.iv ?? null,
               timestamp: lastMessage.createdAt.getTime(),
               read: lastMessage.readAt !== null,
             }
@@ -140,26 +141,76 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ messages: [] });
   }
 
-  // Mark messages as read for this user
-  await prisma.message.updateMany({
-    where: {
-      conversationId: conv.id,
-      sender: { not: authedAddress },
-      readAt: null,
-    },
-    data: { readAt: new Date() },
-  });
+  // Mark messages as read for this user (only when explicitly requested)
+  const markRead = req.nextUrl.searchParams.get("markRead") === "true";
+  if (markRead) {
+    await prisma.message.updateMany({
+      where: {
+        conversationId: conv.id,
+        sender: { not: authedAddress },
+        readAt: null,
+      },
+      data: { readAt: new Date() },
+    });
+  }
 
   const messages = conv.messages.map((m) => ({
     id: m.id,
     offerId: conv.offerId,
     sender: m.sender,
     text: m.text,
+    iv: m.iv ?? null, // null = legacy plaintext message
     timestamp: m.createdAt.getTime(),
     read: m.readAt !== null || m.sender === authedAddress,
   }));
 
-  return NextResponse.json({ messages });
+  // Fetch encryption public keys for all participants
+  const participantAddresses = conv.participants.map((p) => p.address);
+  const encKeys = await prisma.userEncryptionKey.findMany({
+    where: { address: { in: participantAddresses } },
+  });
+  const encryptionKeys: Record<string, string> = {};
+  for (const k of encKeys) {
+    encryptionKeys[k.address] = k.publicKey;
+  }
+
+  return NextResponse.json({ messages, encryptionKeys });
+}
+
+// ─── Validate POST body ──────────────────────────────────────
+function validatePostBody(body: Record<string, unknown>): {
+  valid: false; error: string; status: number;
+} | {
+  valid: true; offerId: string; sanitizedText: string; counterparty?: string; iv?: string; isEncrypted: boolean;
+} {
+  const { offerId, text, counterparty, iv } = body;
+
+  if (!offerId || !(text as string | undefined)?.trim()) {
+    return { valid: false, error: "offerId and text required", status: 400 };
+  }
+
+  if (!isValidOfferId(offerId as string)) {
+    return { valid: false, error: "Invalid offerId", status: 400 };
+  }
+
+  if (counterparty && !/^0x[0-9a-fA-F]{40}$/.test(counterparty as string)) {
+    return { valid: false, error: "Invalid counterparty address", status: 400 };
+  }
+
+  const isEncrypted = typeof iv === "string" && iv.length > 0;
+  const sanitizedText = isEncrypted ? (text as string).trim() : sanitizeText(text as string);
+  if (!sanitizedText) {
+    return { valid: false, error: "Message text is empty after sanitization", status: 400 };
+  }
+
+  return {
+    valid: true,
+    offerId: offerId as string,
+    sanitizedText,
+    counterparty: counterparty as string | undefined,
+    iv: isEncrypted ? iv : undefined,
+    isEncrypted,
+  };
 }
 
 // ─── POST: Send a message ────────────────────────────────────
@@ -183,38 +234,12 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { offerId, text, counterparty } = body;
-
-    if (!offerId || !text?.trim()) {
-      return NextResponse.json(
-        { error: "offerId and text required" },
-        { status: 400 }
-      );
+    const validation = validatePostBody(body);
+    if (!validation.valid) {
+      return NextResponse.json({ error: validation.error }, { status: validation.status });
     }
 
-    if (!isValidOfferId(offerId)) {
-      return NextResponse.json(
-        { error: "Invalid offerId" },
-        { status: 400 }
-      );
-    }
-
-    // Validate counterparty address if provided
-    if (counterparty && !/^0x[0-9a-fA-F]{40}$/.test(counterparty)) {
-      return NextResponse.json(
-        { error: "Invalid counterparty address" },
-        { status: 400 }
-      );
-    }
-
-    // Sanitize text
-    const sanitizedText = sanitizeText(text);
-    if (!sanitizedText) {
-      return NextResponse.json(
-        { error: "Message text is empty after sanitization" },
-        { status: 400 }
-      );
-    }
+    const { offerId, sanitizedText, counterparty, iv, isEncrypted } = validation;
 
     // Get or create conversation
     let conv = await prisma.conversation.findUnique({
@@ -222,7 +247,15 @@ export async function POST(req: NextRequest) {
       include: { participants: true },
     });
 
-    if (!conv) {
+    if (conv) {
+      // Existing conversation - only participants may send messages (R8-02)
+      if (!conv.participants.some((p) => p.address === authedAddress)) {
+        return NextResponse.json(
+          { error: "Not a participant in this conversation" },
+          { status: 403 }
+        );
+      }
+    } else {
       // New conversation requires a counterparty (R9-01: prevent squatting)
       if (!counterparty) {
         return NextResponse.json(
@@ -250,14 +283,6 @@ export async function POST(req: NextRequest) {
         },
         include: { participants: true },
       });
-    } else {
-      // Existing conversation - only participants may send messages (R8-02)
-      if (!conv.participants.some((p) => p.address === authedAddress)) {
-        return NextResponse.json(
-          { error: "Not a participant in this conversation" },
-          { status: 403 }
-        );
-      }
     }
 
     // Create message
@@ -266,6 +291,7 @@ export async function POST(req: NextRequest) {
         conversationId: conv.id,
         sender: authedAddress,
         text: sanitizedText,
+        ...(isEncrypted ? { iv } : {}),
       },
     });
 
@@ -275,6 +301,7 @@ export async function POST(req: NextRequest) {
         offerId,
         sender: message.sender,
         text: message.text,
+        iv: message.iv ?? null,
         timestamp: message.createdAt.getTime(),
         read: false,
       },

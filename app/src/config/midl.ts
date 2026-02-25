@@ -29,7 +29,7 @@ if (
 
 if (
   process.env.NODE_ENV === "development" &&
-  typeof window !== "undefined" &&
+  typeof globalThis.window !== "undefined" &&
   TEKTON_ESCROW_ADDRESS === "0x0000000000000000000000000000000000000000"
 ) {
   console.warn(

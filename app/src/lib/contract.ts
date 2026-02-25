@@ -92,7 +92,7 @@ export function isNativeBTC(token: string): boolean {
 
 export function formatBTC(wei: bigint): string {
   const formatted = formatEther(wei);
-  const btc = parseFloat(formatted);
+  const btc = Number.parseFloat(formatted);
   if (btc === 0) return "0";
   if (btc < 0.000001) return "< 0.000001";
   if (btc < 0.0001) return btc.toFixed(6);
@@ -107,7 +107,7 @@ export function formatTokenAmount(wei: bigint, tokenAddr: string): string {
   const decimals = token?.decimals ?? 18;
   if (decimals === 0) return wei.toString();
   const formatted = formatUnits(wei, decimals);
-  const num = parseFloat(formatted);
+  const num = Number.parseFloat(formatted);
   if (num === 0) return "0";
   if (decimals <= 6) return num.toLocaleString(undefined, { maximumFractionDigits: decimals });
   if (num < 0.0001) return num.toExponential(2);

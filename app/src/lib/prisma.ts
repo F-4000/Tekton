@@ -15,8 +15,10 @@ function createPrismaClient() {
   if (!dbUrl && process.env.NODE_ENV === "production") {
     throw new Error("DATABASE_URL environment variable is required in production");
   }
+  const authToken = process.env.TURSO_AUTH_TOKEN;
   const adapter = new PrismaLibSql({
     url: dbUrl ?? "file:./dev.db",
+    ...(authToken ? { authToken } : {}),
   });
   return new PrismaClient({ adapter });
 }
