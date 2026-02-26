@@ -97,17 +97,33 @@ export function isValidOfferId(offerId: string): boolean {
 /**
  * CSRF check: verify Origin hostname matches Host.
  * Fixes audit findings: C-3, R8-01
+ *
+ * Uses x-forwarded-host (set by Vercel/reverse proxies) as primary,
+ * falls back to Host header. Compares hostnames only (no port)
+ * to avoid mismatches from edge routing or mobile browsers.
  */
 export function csrfCheck(req: NextRequest): boolean {
   const origin = req.headers.get("origin");
-  const host = req.headers.get("host");
-  // If no origin header (same-origin request), allow
+  // No Origin header → same-origin or non-browser request, allow
   if (!origin) return true;
-  if (!host) return false;
+
+  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
+  if (!host) {
+    console.warn("[CSRF] No host header found");
+    return false;
+  }
+
   try {
-    const originHost = new URL(origin).host; // includes port
-    return originHost === host;
+    // Extract hostname only (strip port) for both sides
+    const originHostname = new URL(origin).hostname;
+    const hostHostname = host.split(":")[0];
+    const ok = originHostname === hostHostname;
+    if (!ok) {
+      console.warn(`[CSRF] Mismatch: origin="${originHostname}" host="${hostHostname}"`);
+    }
+    return ok;
   } catch {
+    console.warn(`[CSRF] Failed to parse origin="${origin}"`);
     return false;
   }
 }
